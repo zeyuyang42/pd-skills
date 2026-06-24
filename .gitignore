@@ -1,0 +1,23 @@
+# OS / editor cruft
+.DS_Store
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+
+# Compiled Pure Data externals (build artifacts — never commit binaries)
+*.pd_linux
+*.pd_darwin
+*.dll
+*.d_fat
+*.d_amd64
+*.d_arm64
+*.l_amd64
+*.l_arm64
+*.m_amd64
+*.o
+*.obj
+
+# Note: dist/*.skill IS committed on purpose (prebuilt download artifact).

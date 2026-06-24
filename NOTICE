@@ -1,0 +1,23 @@
+pd-skills — attribution
+========================
+
+The repository's tooling, scripts, and skill templates are licensed under the
+MIT License (see LICENSE).
+
+skills/pd-externals
+-------------------
+The `pd-externals` skill is distilled from the **Pure Data externals HOWTO**:
+
+    https://github.com/pure-data/externals-howto
+    "HOWTO write an External for Pure Data"
+    Copyright (c) 2001-2006 IOhannes m zmölnig (zmoelnig [at] iem.at)
+
+In that upstream project the documentation is licensed under the GNU Free
+Documentation License v1.2 or later, and the accompanying example code under a
+3-clause BSD license. The concepts, API descriptions, and example objects that
+the skill's reference docs and templates are derived from originate there, and
+credit belongs to IOhannes m zmölnig and the Pure Data community.
+
+This NOTICE is provided for attribution. It is not legal advice; if you intend
+to redistribute the derived documentation under different terms, review the
+upstream GFDL/BSD licenses first.
