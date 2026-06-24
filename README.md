@@ -3,10 +3,6 @@
 Reusable **Agent Skills** for audio / Pure&nbsp;Data development, in the portable `SKILL.md` format that works
 across **Claude Code, Codex, GitHub Copilot CLI, Gemini CLI**, and other agent runtimes.
 
-A *skill* is just a folder with a `SKILL.md` (YAML frontmatter `name` + `description`, then a Markdown body),
-optionally with `references/` and `assets/` subfolders. Every major agent system loads this same format — so a
-skill in this repo installs anywhere; only the *destination directory* differs (see the table below).
-
 ## Skills
 
 | Skill | What it does |

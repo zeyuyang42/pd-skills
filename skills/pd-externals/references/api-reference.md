@@ -1,7 +1,6 @@
 # Pd C API reference (m_pd.h)
 
-Signatures and semantics for the functions, macros, and types used in externals. This is a lookup
-document — jump to the section you need.
+Signatures and semantics for the functions, macros, and types used in externals. This is a lookup document — jump to the section you need.
 
 ## Contents
 

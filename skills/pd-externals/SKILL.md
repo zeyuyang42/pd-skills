@@ -22,8 +22,7 @@ that, if broken, silently corrupt audio or crash Pd.
 
 ## How to use this skill
 
-- **Creating an external?** Start from a template in `assets/` (copy it, don't retype boilerplate),
-  rename the placeholders, then follow the Workflow below. Use `assets/Makefile` for the build.
+- **Creating an external?** Start from a template in `assets/` (copy it, don't retype boilerplate), rename the placeholders, then follow the Workflow below. Use `assets/Makefile` for the build.
 - **Debugging a crash or wrong output?** Read the "Crash & corruption rules" section first —
   almost every Pd-specific bug is one of those. Then consult `references/`.
 - **Conceptual / API question?** The mental model below plus `references/api-reference.md` cover it.
