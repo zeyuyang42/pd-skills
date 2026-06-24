@@ -1,0 +1,23 @@
+[
+  {"query": "i'm writing a pure data external in C called bitcrush~ and pd segfaults the instant i turn on dsp. here's my perform routine and dsp method, can you spot what's wrong?", "should_trigger": true},
+  {"query": "How do I add a second (right) inlet to my Pd object that sets a float parameter? Right now I only have the left inlet that class_new gives me.", "should_trigger": true},
+  {"query": "what does CLASS_MAINSIGNALIN actually do and why do i need to pass that dummy float field from my struct", "should_trigger": true},
+  {"query": "Make a Pure Data object in C that takes a list of numbers and outputs their average when it gets a bang. Include a Makefile to build it.", "should_trigger": true},
+  {"query": "my m_pd.h object's perform function returns w+4 but i passed 3 pointers to dsp_add — is that the bug that's crashing pd?", "should_trigger": true},
+  {"query": "trying to compile my counter.c into a .pd_darwin on my mac but cc can't find m_pd.h. how do i point the build at the Pd app i installed?", "should_trigger": true},
+  {"query": "write me a pd signal object (tilde) that does a simple one-pole lowpass filter, with the cutoff frequency as a creation argument", "should_trigger": true},
+  {"query": "how do i make my object's two outlets fire in the right order? the stuff connected to the left outlet is acting on stale values from the right one", "should_trigger": true},
+  {"query": "I get a crash when I delete my object. I allocated a buffer with getbytes in the constructor — what am I supposed to do in the destructor?", "should_trigger": true},
+  {"query": "explain how class_addmethod selectors and A_GIMME work if I want a custom 'set' message on my puredata extern", "should_trigger": true},
+
+  {"query": "how do i connect a [metro 500] to a [bng] and then to a [print] in my pure data patch? i'm brand new to pd", "should_trigger": false},
+  {"query": "write a Max/MSP external in C using the Max SDK that outputs a bang out the left outlet when it receives a list", "should_trigger": false},
+  {"query": "how do I install Pure Data on Windows and add the zexy library to my search path?", "should_trigger": false},
+  {"query": "my JUCE AudioProcessor::processBlock is producing clicks at buffer boundaries, here's the C++ — what's wrong?", "should_trigger": false},
+  {"query": "explain how a Schroeder reverb works with comb and allpass filters, including the difference equations", "should_trigger": false},
+  {"query": "write a python script that generates a .pd patch file with 10 osc~ objects wired into a dac~", "should_trigger": false},
+  {"query": "my SuperCollider UGen plugin won't load — Server says the .scx couldn't be found. how do I fix the install path?", "should_trigger": false},
+  {"query": "how do I record the audio output of my Pd patch to a wav file using writesf~?", "should_trigger": false},
+  {"query": "what's the practical difference between Pd Vanilla, Purr Data, and plugdata for a beginner?", "should_trigger": false},
+  {"query": "build a VST3 audio plugin in C++ with the Steinberg SDK that adds soft-clipping distortion", "should_trigger": false}
+]
