@@ -1,5 +1,7 @@
 # pd-skills
 
+> ⚠️ **Under review.** This skill is still being reviewed for correctness — treat its guidance as provisional and verify before relying on it.
+
 Reusable **Agent Skills** for audio / Pure&nbsp;Data development, in the portable `SKILL.md` format that works
 across **Claude Code, Codex, GitHub Copilot CLI, Gemini CLI**, and other agent runtimes.
 
