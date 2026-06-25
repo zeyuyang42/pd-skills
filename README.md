@@ -52,10 +52,10 @@ unzip pd-externals.skill -d ~/.claude/skills/      # creates ~/.claude/skills/pd
 After installing, restart/reload your agent if needed, then ask it something the skill covers (e.g. *"write a
 Pure Data signal external in C that …"*) and it will consult the skill.
 
-> **Note on one-command marketplace installers.** Some runtimes can install straight from a GitHub repo (e.g.
-> `gemini extensions install <url>`, or a Codex/Copilot marketplace add). Those require the repo to be
-> **public or authenticated**. While this repo is private, use the installer, a manual copy, or the `.skill`
-> bundle above — all work offline.
+> **Note on one-command marketplace installers.** Some runtimes can install straight from a public
+> GitHub repo — e.g. `gemini extensions install https://github.com/zeyuyang42/pd-skills`, or a
+> Codex/Copilot marketplace add. This repo is public, so those work directly. The installer, a manual
+> copy, or the `.skill` bundle above remain available too, and work fully offline.
 
 ## Repo layout
 
@@ -63,6 +63,7 @@ Pure Data signal external in C that …"*) and it will consult the skill.
 pd-skills/
 ├── skills/<name>/          # each skill: SKILL.md (+ references/, assets/)
 ├── dist/<name>.skill       # prebuilt zip of each skill
+├── evals/                  # eval harness: grader + trigger cases
 ├── install.sh              # copy/symlink a skill into an agent's skills dir
 └── scripts/package.sh      # rebuild dist/*.skill from skills/ (needs only `zip`)
 ```
