@@ -70,6 +70,7 @@ void hello_setup(void) {                          /* Pd calls <name>_setup on lo
 ```
 
 The object name, the source basename, and the `_setup` prefix must match, or Pd can't load the object.
+Don't reuse the name of a vanilla object (`clip~`, `line`, …). The built-in takes priority, so your external never loads.
 
 ## Workflow
 
@@ -92,6 +93,8 @@ The object name, the source basename, and the `_setup` prefix must match, or Pd 
 - **Register `dsp` with `A_CANT`:** `class_addmethod(c, (t_method)x_dsp, gensym("dsp"), A_CANT, 0);`.
   This stops a user from calling it from a patch.
 - **In-place buffers:** an input and an output may share memory. Read every input sample you need before writing outputs.
+  This matters whenever `out[i]` is not computed from `in[i]` alone. A delay line, for example, must use
+  `t_sample s = in[i]; out[i] = buf[p]; buf[p] = s;`. Writing `out[i]` before reading `in[i]` outputs silence.
 - **`t_int` is pointer-sized and belongs only in `perform`'s `w[]`.** Use `int` for counters and indices.
 - **No `float` method on a `CLASS_MAINSIGNALIN` inlet.** The macro's dummy `t_float` member already turns floats into a constant signal.
 - **Free heap memory in the destructor** (`getbytes` → `freebytes`). Pd frees inlets and outlets itself, so
