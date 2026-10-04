@@ -1,81 +1,74 @@
 # pd-skills
 
-> ⚠️ **Under review.** This skill is still being reviewed for correctness — treat its guidance as provisional and verify before relying on it.
-
-Reusable **Agent Skills** for audio / Pure&nbsp;Data development, in the portable `SKILL.md` format that works
-across **Claude Code, Codex, GitHub Copilot CLI, Gemini CLI**, and other agent runtimes.
-
-## Skills
+[Agent Skills](https://agentskills.io) for Pure&nbsp;Data development, in the portable `SKILL.md` format. They work in
+Claude Code, Claude.ai, Codex, GitHub Copilot, Gemini CLI, Cursor, OpenCode, and other runtimes that read `SKILL.md`.
 
 | Skill | What it does |
 |-------|--------------|
-| [`pd-externals`](skills/pd-externals/) | Write, compile, and debug **C externals (plugins) for Pure Data** — the boilerplate, conventions, full API reference, the crash/corruption rules, and annotated control + signal (`~`) templates with a pd-lib-builder Makefile. |
+| [`pd-externals`](skills/pd-externals/) | Write, compile, and debug **C externals for Pure Data**. Includes the conventions, the crash/corruption rules, an API reference with a guide to checking your own `m_pd.h`, and control and signal (`~`) templates with a pd-lib-builder Makefile. |
 
 ## Install
 
-### Quick: the installer
+**Any agent, one command** (via [`skills`](https://github.com/vercel-labs/skills)):
 
 ```bash
-git clone https://github.com/zeyuyang42/pd-skills.git
-cd pd-skills
-./install.sh <agent> [skill]      # e.g. ./install.sh claude pd-externals
+npx skills add zeyuyang42/pd-skills --skill pd-externals        # project scope
+npx skills add zeyuyang42/pd-skills --skill pd-externals -g     # user scope
 ```
 
-`<agent>` is one of `claude`, `codex`, `copilot`, `gemini`, or `agents` (the cross-runtime path). Omit the
-skill name to install all skills. Add `--link` to symlink instead of copy (repo edits propagate), or
-`--dest DIR` to install somewhere custom.
+**Native installers:**
 
-### Manual: copy the folder
+| Runtime | Command |
+|---------|---------|
+| Claude Code | `/plugin marketplace add zeyuyang42/pd-skills`, then `/plugin install pd-externals@pd-skills` |
+| GitHub Copilot | `gh skill install zeyuyang42/pd-skills pd-externals` |
+| Gemini CLI | `gemini skills install https://github.com/zeyuyang42/pd-skills --path skills/pd-externals` |
+| Claude.ai / desktop | Download [`dist/pd-externals.skill`](dist/), then go to *Customize › Skills › Upload a skill* |
 
-A skill is just a folder — copy `skills/<name>/` into your agent's skills directory:
+**Manual copy.** A skill is just a folder. Copy `skills/pd-externals/` into one of these directories:
 
-| Agent | Skills directory | Command |
-|-------|------------------|---------|
-| Claude Code | `~/.claude/skills/` | `cp -R skills/pd-externals ~/.claude/skills/` |
-| Codex | `~/.codex/skills/` (or `~/.agents/skills/`) | `cp -R skills/pd-externals ~/.codex/skills/` |
-| GitHub Copilot CLI | `~/.copilot/skills/` (or `~/.agents/skills/`) | `cp -R skills/pd-externals ~/.copilot/skills/` |
-| Gemini CLI | `~/.gemini/skills/` (or `~/.agents/skills/`) | `cp -R skills/pd-externals ~/.gemini/skills/` |
-| Codex / Copilot / Gemini (shared) | `~/.agents/skills/` | `cp -R skills/pd-externals ~/.agents/skills/` |
+| Runtime | User | Project |
+|---------|------|---------|
+| Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| Codex, Gemini CLI, Copilot, Cursor, OpenCode | `~/.agents/skills/` | `.agents/skills/` |
 
-`~/.agents/skills/` is a cross-runtime path shared by Codex, Copilot CLI, and Gemini CLI — install once there
-to cover all three.
+Each runtime also reads its own directory (`~/.gemini/skills`, `~/.copilot/skills`, `~/.cursor/skills`,
+`~/.config/opencode/skills`, `.github/skills`, …). The shared `.agents/skills` covers all of them at once.
 
-### One file: the `.skill` bundle
-
-Each skill is also packaged as a `.skill` zip in [`dist/`](dist/). Download one and unzip it into any skills
-directory:
+**Offline installer** (copy, or `--link` to symlink):
 
 ```bash
-unzip pd-externals.skill -d ~/.claude/skills/      # creates ~/.claude/skills/pd-externals/
+git clone https://github.com/zeyuyang42/pd-skills.git && cd pd-skills
+./install.sh <claude|codex|copilot|gemini|cursor|opencode|agents> [skill] [--link] [--dest DIR]
 ```
 
-After installing, restart/reload your agent if needed, then ask it something the skill covers (e.g. *"write a
-Pure Data signal external in C that …"*) and it will consult the skill.
+Once it's installed, ask something like *"write a Pure Data signal external in C that…"*. The agent loads the skill when the task matches.
 
-> **Note on one-command marketplace installers.** Some runtimes can install straight from a public
-> GitHub repo — e.g. `gemini extensions install https://github.com/zeyuyang42/pd-skills`, or a
-> Codex/Copilot marketplace add. This repo is public, so those work directly. The installer, a manual
-> copy, or the `.skill` bundle above remain available too, and work fully offline.
+## Evals
 
-## Repo layout
+`evals/evals.json` defines 8 tasks: control and signal objects, a crash diagnosis, and trap cases such as outlet order,
+the `CLASS_MAINSIGNALIN` float conflict, and per-instance state. `evals/grade_pd.py` checks each output's structure
+and **compiles it against a real `m_pd.h`**. It finds the header through `$PD_INCLUDE`, `--pd-include`, or auto-detection.
+`evals/trigger-evals.json` holds should/shouldn't-trigger queries.
 
-```
-pd-skills/
-├── skills/<name>/          # each skill: SKILL.md (+ references/, assets/)
-├── dist/<name>.skill       # prebuilt zip of each skill
-├── evals/                  # eval harness: grader + trigger cases
-├── install.sh              # copy/symlink a skill into an agent's skills dir
-└── scripts/package.sh      # rebuild dist/*.skill from skills/ (needs only `zip`)
+```bash
+python3 evals/grade_pd.py --eval-id 1 --run-dir path/to/run    # expects path/to/run/outputs/*.c
 ```
 
-## Adding or updating a skill
+## Layout
 
-1. Create `skills/<name>/SKILL.md` (plus `references/` / `assets/` as needed).
-2. Run `bash scripts/package.sh` to (re)build `dist/<name>.skill`.
-3. Commit.
+```
+skills/<name>/                 SKILL.md (+ references/, assets/)
+dist/<name>.skill              prebuilt zip for upload
+evals/                         tasks, grader, trigger cases
+.claude-plugin/marketplace.json  Claude Code plugin marketplace
+install.sh                     offline installer
+scripts/package.sh             rebuild dist/*.skill (needs only `zip`)
+```
+
+To add or update a skill, edit `skills/<name>/` and run `bash scripts/package.sh`. For a new skill, also add it to `.claude-plugin/marketplace.json`.
 
 ## License
 
-Tooling and templates are **MIT** (see [LICENSE](LICENSE)). The `pd-externals` skill is distilled from the
-[Pure Data externals HOWTO](https://github.com/pure-data/externals-howto) — see [NOTICE](NOTICE) for
-attribution.
+Tooling and templates are **MIT** (see [LICENSE](LICENSE)). `pd-externals` is distilled from the
+[Pure Data externals HOWTO](https://github.com/pure-data/externals-howto); see [NOTICE](NOTICE).

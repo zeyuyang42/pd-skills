@@ -10,12 +10,24 @@ outputs/ (i.e. in the run dir).
 
 Usage:
   python3 grade_pd.py --eval-id N --run-dir <dir-containing-outputs> \
-      [--pd-include /Applications/Pd-0.55-2.app/Contents/Resources/src]
+      [--pd-include DIR]   # dir containing m_pd.h; default: $PD_INCLUDE or auto-detect
 """
 import argparse, json, re, subprocess, tempfile, os, glob
 from pathlib import Path
 
-PD_INCLUDE_DEFAULT = "/Applications/Pd-0.55-2.app/Contents/Resources/src"
+def _default_pd_include():
+    """$PD_INCLUDE, else the newest macOS Pd app bundle, else common Linux paths."""
+    if os.environ.get("PD_INCLUDE"):
+        return os.environ["PD_INCLUDE"]
+    cands = sorted(glob.glob("/Applications/Pd-*.app/Contents/Resources/src"), reverse=True)
+    cands += ["/usr/include/pd", "/usr/local/include/pd"]
+    for c in cands:
+        if os.path.exists(os.path.join(c, "m_pd.h")):
+            return c
+    return cands[0] if cands else "/usr/include/pd"
+
+
+PD_INCLUDE_DEFAULT = _default_pd_include()
 
 
 def read(path):
@@ -443,6 +455,8 @@ def grade_clip(outputs, pd_include):
 
 KINDS = {"delayline": grade_delayline, "divmod": grade_divmod, "accum": grade_accum,
          "dcblock": grade_dcblock, "clip": grade_clip}
+# evals.json ids 3-7 map to the kinds above, so --eval-id N alone works for every eval
+ID_KINDS = {3: "delayline", 4: "divmod", 5: "accum", 6: "dcblock", 7: "clip"}
 
 
 def main():
@@ -462,8 +476,9 @@ def main():
             meta = json.loads(cand.read_text())
             break
 
-    if args.kind:
-        results = KINDS[args.kind](outputs, args.pd_include)
+    kind = args.kind or ID_KINDS.get(args.eval_id)
+    if kind:
+        results = KINDS[kind](outputs, args.pd_include)
     elif args.eval_id in (0, 1):
         results = grade_code_eval(args.eval_id, outputs, args.pd_include)
     else:

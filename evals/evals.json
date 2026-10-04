@@ -1,0 +1,137 @@
+{
+  "skill_name": "pd-externals",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Write a Pure Data external in C called `randf`. When it receives a bang, it should output a random floating-point number between 0 and a maximum value. The maximum is given as a creation argument (e.g. `[randf 100]` ranges 0–100; default 1 if no argument is given) and can also be changed at runtime via a second inlet. Provide the complete `randf.c` source and a `Makefile` to build it. Do not compile or install — just produce the two files.",
+      "expected_output": "A randf.c that includes m_pd.h, has t_object as the first struct member, reads max from a creation arg, has a second inlet to update max, outputs a random float on bang via outlet_float, and a randf_setup using class_new(gensym(\"randf\"),...). Compiles cleanly against m_pd.h. A Makefile that builds the external.",
+      "files": [],
+      "expectations": [
+        "randf.c includes \"m_pd.h\"",
+        "The data-space struct has t_object (x_obj) as its first member",
+        "The constructor calls pd_new() and returns the instance pointer",
+        "A setup function named randf_setup exists and calls class_new with gensym(\"randf\")",
+        "A bang handler is registered with class_addbang and outputs a float via outlet_float",
+        "The maximum is read from a creation argument (A_DEFFLOAT in class_new, or A_GIMME parsed with atom_getfloat)",
+        "A second inlet updates the maximum (floatinlet_new, or inlet_new plus a registered method)",
+        "randf.c compiles cleanly against m_pd.h (produces a loadable binary with no errors)",
+        "A Makefile is provided that builds the external (pd-lib-builder with lib.name/class.sources, or a correct manual compile rule producing the platform extension)"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Write a Pure Data signal (`~`) external in C called `mult~` that multiplies two incoming audio signals together — one signal on the left inlet and one signal on the right inlet — and sends the product to a single signal outlet. Include the DSP `perform` routine and the `dsp` method, plus a `Makefile` to build it. Provide the complete `mult~.c` and `Makefile`. Do not compile or install — just produce the two files.",
+      "expected_output": "A mult~.c that includes m_pd.h, t_object first, uses CLASS_MAINSIGNALIN for the left signal inlet, creates a second signal inlet and a signal outlet, registers the dsp method with A_CANT, and a perform routine that reads args from w[1] and returns w+(n+1). Compiles cleanly. A Makefile that builds it.",
+      "files": [],
+      "expectations": [
+        "mult~.c includes \"m_pd.h\"",
+        "The data-space struct has t_object (x_obj) as its first member",
+        "Uses CLASS_MAINSIGNALIN to make the left (first) inlet a signal inlet",
+        "Creates a second signal inlet with inlet_new(..., &s_signal, &s_signal) and a signal outlet with outlet_new(..., &s_signal)",
+        "Registers the dsp method with A_CANT: class_addmethod(c, ..., gensym(\"dsp\"), A_CANT, 0)",
+        "The perform routine casts its arguments starting at w[1] (not w[0])",
+        "The perform routine returns w + (n+1) consistent with the dsp_add pointer count (e.g. dsp_add count 5 -> return w+6)",
+        "The perform routine multiplies the two input sample vectors into the output vector",
+        "mult~.c compiles cleanly against m_pd.h (produces a loadable binary with no errors)",
+        "A Makefile is provided that builds the external"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I wrote this Pure Data signal external in C. It loads fine and I can create the object, but the moment I turn on DSP (audio) in Pd, Pd crashes. Here is the full source. What is wrong, and how do I fix it? Explain the bug(s) and show the corrected code. Save your analysis (and the corrected code) as `answer.md`.\n\n```c\n#include \"m_pd.h\"\n\nstatic t_class *gain_tilde_class;\n\ntypedef struct _gain_tilde {\n  t_object x_obj;\n  t_float  gain;\n  t_float  f;\n} t_gain_tilde;\n\nt_int *gain_tilde_perform(t_int *w)\n{\n  t_gain_tilde *x = (t_gain_tilde *)(w[1]);\n  t_sample *in    = (t_sample *)(w[2]);\n  t_sample *out   = (t_sample *)(w[3]);\n  int n           = (int)(w[4]);\n  while (n--) *out++ = *in++ * x->gain;\n  return (w + 4);\n}\n\nvoid gain_tilde_dsp(t_gain_tilde *x, t_signal **sp)\n{\n  dsp_add(gain_tilde_perform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[0]->s_n);\n}\n\nvoid *gain_tilde_new(t_floatarg f)\n{\n  t_gain_tilde *x = (t_gain_tilde *)pd_new(gain_tilde_class);\n  x->gain = f;\n  outlet_new(&x->x_obj, &s_signal);\n  return (void *)x;\n}\n\nvoid gain_tilde_setup(void)\n{\n  gain_tilde_class = class_new(gensym(\"gain~\"),\n        (t_newmethod)gain_tilde_new, 0,\n        sizeof(t_gain_tilde), CLASS_DEFAULT, A_DEFFLOAT, 0);\n  class_addmethod(gain_tilde_class, (t_method)gain_tilde_dsp, gensym(\"dsp\"), 0);\n  CLASS_MAINSIGNALIN(gain_tilde_class, t_gain_tilde, f);\n}\n```",
+      "expected_output": "An answer.md that pinpoints the perform-routine return value bug: it returns w+4 but dsp_add was given 4 pointers, so it must return w+(4+1)=w+5. Explains the crash: a wrong return corrupts Pd's traversal of the DSP chain. Also notes the dsp method should be registered with A_CANT instead of 0. Shows corrected code with return (w+5) and A_CANT.",
+      "files": [],
+      "expectations": [
+        "Identifies the perform-routine return-value bug: it returns w+4 but must return w+5 (w + n + 1, with n=4 from dsp_add)",
+        "Explains WHY the wrong return crashes Pd when DSP starts (the DSP chain traversal reads past/short of the stored pointers into invalid memory)",
+        "Notes that the dsp method should be registered with A_CANT rather than 0",
+        "Provides corrected code in which the perform routine returns (w + 5)",
+        "The diagnosis centers on the return value as the crash cause and does not invent an unrelated/incorrect root cause"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Write a Pure Data signal external `delayline~` that delays its input signal by a fixed time in milliseconds, given as a creation argument (e.g. `[delayline~ 250]` = 250 ms; default 100 ms). Allocate the delay buffer dynamically based on the patch's sample rate, and make sure all resources are cleaned up properly when the object is deleted. Include the perform routine, the dsp method, and a Makefile. Do not compile or install — just produce delayline~.c and the Makefile.",
+      "expected_output": "A delayline~.c that allocates a delay buffer sized from sys_getsr(), registers a destructor (3rd arg of class_new) that frees the buffer (no leak), uses CLASS_MAINSIGNALIN + a signal outlet, registers dsp with A_CANT, and a perform routine returning w+(n+1). Compiles cleanly. A Makefile.",
+      "files": [],
+      "expectations": [
+        "delayline~.c includes \"m_pd.h\"",
+        "The data-space struct has t_object as its first member",
+        "Left inlet is a signal inlet (CLASS_MAINSIGNALIN) with a signal outlet",
+        "Allocates the delay buffer dynamically and sizes it from the sample rate (sys_getsr)",
+        "Registers a destructor (non-zero 3rd arg to class_new) to clean up",
+        "The destructor frees the allocated buffer (freebytes/free)",
+        "Registers the dsp method with A_CANT",
+        "perform casts from w[1] and returns w+(n+1) per the dsp_add count",
+        "delayline~.c compiles cleanly against m_pd.h",
+        "A Makefile is provided that builds the external"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Write a Pure Data control external `divmod` that performs integer division. It takes a float input and a divisor as a creation argument (e.g. `[divmod 7]`, default 1). On each incoming float it outputs the integer quotient on its LEFT outlet and the remainder on its RIGHT outlet. Follow Pd's outlet conventions. Include a Makefile. Do not compile or install — just produce divmod.c and the Makefile.",
+      "expected_output": "A divmod.c with two stored outlets that, on a float, fires the RIGHT outlet (remainder) before the LEFT outlet (quotient) per Pd's right-to-left convention, reads the divisor from a creation arg, and compiles cleanly. A Makefile.",
+      "files": [],
+      "expectations": [
+        "divmod.c includes \"m_pd.h\"",
+        "The data-space struct has t_object as its first member",
+        "Creates two outlets and stores both handles in the data space",
+        "A float handler computes integer quotient and remainder (uses / and %)",
+        "Fires the RIGHT outlet before the LEFT outlet (Pd right-to-left convention)",
+        "Reads the divisor from a creation argument (A_DEFFLOAT)",
+        "divmod.c compiles cleanly against m_pd.h",
+        "A Makefile is provided that builds the external"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Write a Pure Data control external `accum` that keeps a running total. When it receives a list of numbers it adds them all to the total and outputs the new total. Any element of the list that is not a number should be skipped and reported as an error. A `bang` outputs the current total; a `reset` message sets the total back to 0. Include a Makefile. Do not compile or install — just produce accum.c and the Makefile.",
+      "expected_output": "An accum.c with a class_addlist handler that inspects each atom's a_type (skipping non-floats and reporting them via pd_error, NOT the removed error()), plus bang and reset methods. Compiles cleanly. A Makefile.",
+      "files": [],
+      "expectations": [
+        "accum.c includes \"m_pd.h\"",
+        "The data-space struct has t_object as its first member",
+        "Registers a list handler (class_addlist or a list method)",
+        "Inspects each atom's type before summing (a_type check or atom_getfloatarg)",
+        "Reports non-numbers with the modern pd_error() API (not the removed error())",
+        "Registers a bang handler and a reset method",
+        "accum.c compiles cleanly against m_pd.h",
+        "A Makefile is provided that builds the external"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Write a Pure Data signal external `dcblock~` that removes the DC offset from its input signal with a one-pole high-pass filter: y[n] = x[n] - x[n-1] + R*y[n-1], with R = 0.995. One signal inlet, one signal outlet, no creation arguments. Include the perform routine, the dsp method, and a Makefile. Do not compile or install — just produce dcblock~.c and the Makefile.",
+      "expected_output": "A dcblock~.c whose filter state (x[n-1], y[n-1]) lives in the per-instance struct and is updated in perform (NOT static locals, which would be shared across instances), with A_CANT on dsp and perform returning w+(n+1). Compiles cleanly. A Makefile.",
+      "files": [],
+      "expectations": [
+        "dcblock~.c includes \"m_pd.h\"",
+        "The data-space struct has t_object as its first member",
+        "Signal inlet (CLASS_MAINSIGNALIN) and a signal outlet",
+        "Filter state (x[n-1], y[n-1]) is stored per-instance, NOT as static locals in perform",
+        "perform persists the state across blocks (writes it back into the struct)",
+        "Registers the dsp method with A_CANT",
+        "perform casts from w[1] and returns w+(n+1)",
+        "dcblock~.c compiles cleanly against m_pd.h",
+        "A Makefile is provided that builds the external"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Write a Pure Data signal external `clip~` that clips its input signal to a range [lo, hi]. lo and hi are creation arguments (default -1 and 1) and must also be changeable at runtime. One signal inlet, one signal outlet. Include the perform routine, the dsp method, and a Makefile. Do not compile or install — just produce clip~.c and the Makefile.",
+      "expected_output": "A clip~.c that reads lo/hi from two A_DEFFLOAT creation args and lets them be changed at runtime WITHOUT adding a float method to the main signal inlet (which would conflict with CLASS_MAINSIGNALIN) — using separate inlets or a message instead. A_CANT on dsp, perform returns w+(n+1). Compiles. A Makefile.",
+      "files": [],
+      "expectations": [
+        "clip~.c includes \"m_pd.h\"",
+        "The data-space struct has t_object as its first member",
+        "Signal inlet (CLASS_MAINSIGNALIN) and a signal outlet",
+        "Reads lo and hi from creation arguments (two A_DEFFLOAT, or A_GIMME)",
+        "Runtime lo/hi update does NOT use a float method on the main signal inlet (no class_addfloat conflict)",
+        "Registers the dsp method with A_CANT",
+        "perform clips each sample and returns w+(n+1) from w[1]",
+        "clip~.c compiles cleanly against m_pd.h",
+        "A Makefile is provided that builds the external"
+      ]
+    }
+  ]
+}

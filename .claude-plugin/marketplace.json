@@ -1,0 +1,15 @@
+{
+  "name": "pd-skills",
+  "owner": { "name": "Zeyu Yang" },
+  "metadata": { "description": "Agent Skills for Pure Data development" },
+  "plugins": [
+    {
+      "name": "pd-externals",
+      "source": "./",
+      "description": "Write, compile, and debug C externals for Pure Data (Pd).",
+      "license": "MIT",
+      "strict": false,
+      "skills": ["./skills/pd-externals"]
+    }
+  ]
+}

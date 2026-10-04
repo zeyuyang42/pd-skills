@@ -53,7 +53,8 @@ void myobj_tilde_dsp(t_myobj_tilde *x, t_signal **sp) {
   dsp_add(myobj_tilde_perform, 4, x, sp[0]->s_vec, sp[1]->s_vec, sp[0]->s_n);
 }
 
-/* ---- destructor: free the iolets we created (and any getbytes buffers) ---- */
+/* ---- destructor: free getbytes buffers here. Pd frees iolets itself, so the
+ * explicit *_free calls below are optional but harmless. ---- */
 void myobj_tilde_free(t_myobj_tilde *x) {
   inlet_free(x->x_in2);
   outlet_free(x->x_out);
@@ -80,7 +81,7 @@ void *myobj_tilde_new(t_floatarg f) {
 void myobj_tilde_setup(void) {
   myobj_tilde_class = class_new(gensym("myobj~"),
         (t_newmethod)myobj_tilde_new,
-        (t_method)myobj_tilde_free,       /* destructor: we created extra iolets */
+        (t_method)myobj_tilde_free,       /* destructor */
         sizeof(t_myobj_tilde),
         CLASS_DEFAULT,
         A_DEFFLOAT, 0);

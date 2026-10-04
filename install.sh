@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Install a skill from this repo into an agent's skills directory.
 # Usage: ./install.sh <agent> [skill] [--link] [--dest DIR]
-#   agent : claude | codex | copilot | gemini | agents
+#   agent : claude | codex | copilot | gemini | cursor | opencode | agents
 #   skill : a folder name under skills/ (default: install all skills)
 #   --link: symlink instead of copy, so edits in this repo propagate
 #   --dest DIR: install into DIR instead of the agent's default dir (handy for testing)
 # Examples:
 #   ./install.sh claude pd-externals
-#   ./install.sh agents            # all skills into ~/.agents/skills (Codex/Copilot/Gemini)
+#   ./install.sh agents            # all skills into ~/.agents/skills (Codex/Copilot/Gemini/Cursor/OpenCode)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -29,11 +29,13 @@ done
 
 case "$agent" in
   claude)  default="$HOME/.claude/skills" ;;
-  codex)   default="$HOME/.codex/skills" ;;
+  codex)   default="$HOME/.agents/skills" ;;
   copilot) default="$HOME/.copilot/skills" ;;
   gemini)  default="$HOME/.gemini/skills" ;;
+  cursor)  default="$HOME/.cursor/skills" ;;
+  opencode) default="$HOME/.config/opencode/skills" ;;
   agents)  default="$HOME/.agents/skills" ;;
-  *) echo "unknown agent: '$agent' (expected: claude|codex|copilot|gemini|agents)" >&2; exit 1 ;;
+  *) echo "unknown agent: '$agent' (expected: claude|codex|copilot|gemini|cursor|opencode|agents)" >&2; exit 1 ;;
 esac
 target="${dest:-$default}"
 mkdir -p "$target"
