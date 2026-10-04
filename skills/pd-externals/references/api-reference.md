@@ -1,22 +1,11 @@
 # Pd C API reference (m_pd.h)
 
-Signatures and semantics for the functions, macros, and types used in externals. This is a lookup document — jump to the section you need.
-
-## Contents
-
-- [Types](#types)
-- [Atoms](#atoms)
-- [Classes & methods](#classes--methods)
-- [Inlets & outlets](#inlets--outlets)
-- [DSP](#dsp)
-- [Memory](#memory)
-- [Console output](#console-output)
-
----
+A lookup sheet of the signatures externals use most, grouped as Types, Atoms, Classes & methods, Inlets & outlets, DSP, Memory
+and Console output. When something is missing here or the Pd version matters, grep your `m_pd.h` (see SKILL.md → "Check the real API").
 
 ## Types
 
-Pd redefines many primitives for portability. Prefer the `t_` types over raw C types in external code.
+Prefer the `t_` types over raw C types, because they follow Pd's build precision.
 
 | type | description |
 |------|-------------|
@@ -26,7 +15,7 @@ Pd redefines many primitives for portability. Prefer the `t_` types over raw C t
 | `t_symbol` | interned symbol; `s->s_name` is the C string |
 | `t_gpointer` | pointer to a graphical/data object |
 | `t_int` | **pointer-sized integer** — for the `perform` `w[]` array only, *not* ordinary ints |
-| `t_signal` | a signal: `s_vec` (sample buffer), `s_n` (length), `s_sr` (sample rate) |
+| `t_signal` | a signal: `s_vec` (samples), `s_length` (= legacy `s_n`), `s_sr` (rate), `s_nchans` (0.54+) |
 | `t_sample` | one audio sample (floating point) |
 | `t_outlet` / `t_inlet` | an outlet / inlet handle |
 | `t_object` | object internals; **first member of a graphical object's data space** |
@@ -34,8 +23,6 @@ Pd redefines many primitives for portability. Prefer the `t_` types over raw C t
 | `t_class` | a Pd class |
 | `t_method` | generic method pointer (cast handlers to this in `class_add*`) |
 | `t_newmethod` | constructor pointer |
-
----
 
 ## Atoms
 
@@ -58,10 +45,8 @@ t_symbol *atom_gensym(t_atom *a);                            /* any atom -> a sy
 void      atom_string(t_atom *a, char *buf, unsigned bufsize); /* atom -> C string (caller-allocd) */
 ```
 
-`atom_getfloatarg` is bounds-safe (returns 0 if `which >= argc`), handy when parsing `A_GIMME` lists. Prefer these
-accessors over poking the atom union directly (`argv[i].a_w.w_float`): they're the idiomatic, future-proof API and
-do the type bookkeeping for you. Still gate on `argv[i].a_type == A_FLOAT` first when a non-number should be treated
-as an error rather than silently read as 0.
+`atom_getfloatarg` is bounds-safe: it returns 0 when `which >= argc`. Use these accessors instead of reading the union
+(`argv[i].a_w.w_float`). If a non-number should count as an error rather than read as 0, check `argv[i].a_type == A_FLOAT` first.
 
 ### Symbols
 
@@ -70,8 +55,6 @@ t_symbol *gensym(const char *s);   /* intern a C string; returns the unique t_sy
 ```
 
 Symbols are unique by content — compare two `t_symbol *` with `==`, not `strcmp`.
-
----
 
 ## Classes & methods
 
@@ -95,8 +78,8 @@ t_class *class_new(t_symbol *name, t_newmethod newmethod, t_method freemethod,
 | `CLASS_PATCHABLE` | normal patchable object |
 | `CLASS_NOINLET` | suppress the default leftmost inlet |
 
-- `arg1, ...` — creation-argument types, 0-terminated, max six typed: `A_DEFFLOAT`, `A_DEFSYMBOL`, or
-  `A_GIMME` (for arbitrary lists). See `control-objects.md` → "Creation arguments".
+- `arg1, ...`: creation-argument types, 0-terminated, at most six typed (`A_DEFFLOAT`, `A_DEFSYMBOL`) or a single `A_GIMME`.
+- `CLASS_MULTICHANNEL` (0.54+) can be OR-ed into `flags` for multichannel signal objects (see DSP below).
 
 ### class_addmethod
 
@@ -104,20 +87,8 @@ t_class *class_new(t_symbol *name, t_newmethod newmethod, t_method freemethod,
 void class_addmethod(t_class *c, t_method fn, t_symbol *sel, t_atomtype arg1, ...);
 ```
 
-Adds `fn` for selector `sel`. The 0-terminated `arg` list declares the following atoms (max six typed):
-`A_DEFFLOAT`, `A_FLOAT`, `A_DEFSYMBOL`, `A_SYMBOL`, `A_POINTER`, `A_GIMME`, `A_CANT` (uncallable from a
-patch — use for `dsp`). Full table in `control-objects.md`.
-
-### Convenience method adders
-
-```c
-void class_addbang(t_class *c, t_method fn);     /* void fn(t_x *x);                                  */
-void class_addfloat(t_class *c, t_method fn);    /* void fn(t_x *x, t_floatarg f);                    */
-void class_addsymbol(t_class *c, t_method fn);   /* void fn(t_x *x, t_symbol *s);                     */
-void class_addpointer(t_class *c, t_method fn);  /* void fn(t_x *x, t_gpointer *p);                   */
-void class_addlist(t_class *c, t_method fn);     /* void fn(t_x *x, t_symbol *s, int ac, t_atom *av); */
-void class_addanything(t_class *c, t_method fn); /* void fn(t_x *x, t_symbol *s, int ac, t_atom *av); */
-```
+The arg-type table and the convenience adders (`class_addbang`, `class_addfloat`, `class_addlist`, …) and their handler
+signatures are in `control-objects.md`. Use `A_CANT` for internal selectors like `dsp`.
 
 ### Other class functions
 
@@ -129,16 +100,13 @@ Adds an alias name `s` (and its arg types) for the constructor — e.g. so `f` a
 ```c
 void class_sethelpsymbol(t_class *c, t_symbol *s);
 ```
-Redirects the right-click help patch. By default Pd opens `doc/5.reference/<classname>.pd`; this points it
-at `s` instead (path relative to the help dir), letting several classes share one help patch.
+Makes right-click › Help open `<s>-help.pd` instead of `<classname>-help.pd`. Use it to let several classes share one help patch.
 
 ```c
 t_pd *pd_new(t_class *cls);
 ```
 Allocates and initializes an instance of `cls`; call it first in every constructor and cast the result to
 your data-space pointer.
-
----
 
 ## Inlets & outlets
 
@@ -183,8 +151,6 @@ void inlet_free(t_inlet *x);
 void outlet_free(t_outlet *x);
 ```
 
----
-
 ## DSP
 
 See `signal-objects.md` for the full workflow; signatures here.
@@ -193,7 +159,7 @@ See `signal-objects.md` for the full workflow; signatures here.
 void my_dsp_method(t_x *x, t_signal **sp);   /* registered for "dsp" with A_CANT */
 ```
 `sp` holds the signals: inputs left→right, then outputs left→right. Each `t_signal` has `s_vec`
-(`t_sample *` buffer) and `s_n` (vector length).
+(`t_sample *` buffer) and `s_length` (vector length; `s_n` is the pre-0.54 alias and still works).
 
 ```c
 CLASS_MAINSIGNALIN(<class>, <datatype>, <floatmember>);
@@ -214,15 +180,18 @@ t_int *my_perform(t_int *w);
 its type. **Return `w + (n + 1)`.**
 
 ```c
-float sys_getsr(void);        /* system sample rate */
-int   sys_getblksize(void);   /* top-level block size (may differ from your perform vector's s_n) */
+t_float sys_getsr(void);      /* system sample rate (inside dsp, prefer sp[0]->s_sr) */
+int     sys_getblksize(void); /* top-level block size; NOT necessarily your vector length (block~/switch~) */
 ```
 
----
+**Multichannel (Pd 0.54+).** If the class sets `CLASS_MULTICHANNEL`, each `t_signal` carries `s_nchans` channels stored
+back-to-back in `s_vec` (`s_nchans * s_length` samples). Outputs must be created in the `dsp` method with
+`signal_setmultiout(&sp[k], nchans)`. Without the flag, Pd hands the object single-channel signals. Read the comment block
+next to `CLASS_MULTICHANNEL` in `m_pd.h` before using it.
 
 ## Memory
 
-Use Pd's allocators (they integrate with Pd's bookkeeping) rather than bare `malloc`/`free` where you can.
+Prefer Pd's allocators to bare `malloc`/`free`.
 
 ```c
 void *getbytes(size_t nbytes);                 /* allocate, zeroed */
@@ -231,22 +200,17 @@ void  freebytes(void *x, size_t nbytes);       /* free (pass the same size) */
 void *resizebytes(void *x, size_t old, size_t new); /* realloc with old/new sizes */
 ```
 
-`getbytes` returns `NULL` on failure — check it before use (a real-time audio object that dereferences a null
-buffer will crash Pd). Free in the destructor everything you allocate, or you leak.
-
----
+`getbytes` returns `NULL` on failure, so check the result. Free everything you allocate in the destructor.
 
 ## Console output
 
 ```c
 void post(const char *fmt, ...);                       /* printf-style line to the Pd console */
-void verbose(int level, const char *fmt, ...);         /* only shown at -v (level 0), -v -v (1), … */
 void pd_error(const void *object, const char *fmt, ...); /* error tied to `object` (NULL ok) — */
                                                          /* the user can click it to find the box */
 void logpost(const void *object, int level, const char *fmt, ...); /* leveled message: */
                                                                    /* 0 fatal,1 error,2 normal,3 verbose,4 more */
 ```
 
-`post` adds a newline automatically and otherwise behaves like `printf`. The old `error()` function was
-**removed** (it clashed with libc); use `pd_error(NULL, ...)` instead. Never call these from a `perform`
-routine — they are not real-time safe.
+`post` adds the newline itself. `error()` was **removed**, so use `pd_error(x, ...)` (or `NULL`). `verbose()` is
+`PD_DEPRECATED`, so use `logpost` instead. None of these are real-time safe, so never call them from `perform`.

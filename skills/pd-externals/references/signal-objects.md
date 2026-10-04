@@ -1,16 +1,8 @@
 # Signal (`~`) objects — audio/DSP
 
-A signal class is an ordinary Pd class plus audio processing. Everything in `control-objects.md` still
-applies (you can mix messages and audio in one object); this file adds the DSP machinery.
-
-By convention the object's symbolic name ends in `~` (e.g. `gain~`). In C the `~` becomes `_tilde`:
-struct `t_gain_tilde`, functions `gain_tilde_new` / `gain_tilde_dsp` / `gain_tilde_perform`, setup
-`gain_tilde_setup`. The **source filename keeps the literal tilde**: `gain~.c`.
-
-## What makes a class a signal class
-
-A class becomes a signal class simply by having a method for the `dsp` selector. When Pd's audio engine
-starts, it sends `dsp` to every object; those that respond are wired into the DSP graph.
+A signal class is a normal Pd class (everything in `control-objects.md` applies) that also has a method for the
+`dsp` selector. When audio starts, Pd sends `dsp` to every object, and the ones that respond are wired into the DSP graph.
+Naming: the object `gain~` has C identifiers `t_gain_tilde` and `gain_tilde_*`, and lives in the file `gain~.c`.
 
 ```c
 void gain_tilde_setup(void) {
@@ -26,29 +18,23 @@ void gain_tilde_setup(void) {
 }
 ```
 
-Two signal-specific lines:
-
-- **`class_addmethod(..., gensym("dsp"), A_CANT, 0)`** registers the DSP setup method. Mark its args
-  `A_CANT` so a user can't type a `dsp` message into a box and crash Pd by calling it with wrong arguments.
-- **`CLASS_MAINSIGNALIN(class, datatype, f)`** turns the leftmost inlet into a signal inlet. The third
-  argument is a **dummy `t_float` member of your struct** (named `f` here). When no signal is patched to
-  that inlet, a float message sent there is written into `f` and used as a constant signal. Because of
-  this mechanism, **the main signal inlet cannot also have a `float` method.**
+`CLASS_MAINSIGNALIN(class, type, f)` makes the leftmost inlet a signal inlet. `f` is a **dummy `t_float` member**:
+a float sent to an unconnected inlet is stored there and used as a constant signal. That is why this inlet can't also
+have a `float` method.
 
 ## The data space of a signal object
 
 ```c
 typedef struct _gain_tilde {
   t_object  x_obj;
-  t_sample  x_gain;    /* a control parameter */
+  t_float   x_gain;    /* a control parameter */
   t_float   f;         /* dummy for CLASS_MAINSIGNALIN (float-as-signal on inlet 0) */
   t_inlet  *x_in2;     /* handles for extra inlets you create … */
   t_outlet *x_out;     /* … and outlets, so you can free them */
 } t_gain_tilde;
 ```
 
-The dummy `f` is only needed if you use `CLASS_MAINSIGNALIN`. Store `t_inlet *` / `t_outlet *` handles for
-every iolet you create beyond the default, so the destructor can release them.
+The dummy `f` is only needed with `CLASS_MAINSIGNALIN`.
 
 ## Creating signal inlets and outlets
 
@@ -80,10 +66,9 @@ void gain_tilde_dsp(t_gain_tilde *x, t_signal **sp) {
 two outs: `sp[0]`,`sp[1]` are the in signals, `sp[2]`,`sp[3]` the out signals. Each `t_signal` gives you:
 
 - `sp[i]->s_vec` — the sample buffer (`t_sample *`).
-- `sp[i]->s_n` — the block length (number of samples). All vectors in a patch share the same length, so
-  reading one (`sp[0]->s_n`) is enough.
-- `sp[i]->s_sr` — the sample rate. Use this **exact** field name (`s_sr`, not `sr`) when you need the rate
-  inside the dsp method (e.g. ms→samples); it's the per-signal rate and is preferable to `sys_getsr()` here.
+- `sp[i]->s_n`: the block length. It is `s_length` in Pd 0.54+, where `s_n` remains a compatible alias. All of an
+  object's vectors share one length.
+- `sp[i]->s_sr`: the sample rate. The field is `s_sr`, not `sr`. Inside `dsp`, prefer it to `sys_getsr()`.
 
 `dsp_add(perform, n, ...)` schedules your perform routine; `n` is **the count of pointer args that follow**
 (here 4: the object, two vectors, the length). Pass whatever the perform routine needs — typically the
@@ -116,23 +101,18 @@ t_int *gain_tilde_perform(t_int *w) {
 }
 ```
 
-Three rules — break any one and you get crashes or garbage audio:
+The SKILL.md crash rules apply here in full:
+- start at `w[1]`
+- return `w + (n + 1)`
+- read inputs before writing outputs, since buffers may alias
+- keep the routine real-time safe
 
-1. **Indices start at `w[1]`.** `w[0]` is the perform routine's own address (Pd-internal); your first
-   pointer is `w[1]`, second `w[2]`, … Cast each back to the type you passed.
-2. **Return `w + (n + 1)`** where `n` is the `dsp_add` count. It points just past your slots so Pd can find
-   the next object. (4 args → `w + 5`; 5 args → `w + 6`.) A wrong return walks the DSP chain into invalid
-   memory → crash.
-3. **In-place aliasing: read inputs before writing outputs.** Pd may assign an input and an output the
-   *same* buffer address to save a copy. If you overwrite `out[i]` before reading every `in[i]` you still
-   need, you clobber your own input. Compute from inputs first (for per-sample ops like above this is
-   automatic; for anything reordering or reusing samples, be deliberate).
-
-Keep perform routines real-time safe: no allocation, no locking, no I/O, no `post()` in the hot path.
+Filter or oscillator state (previous samples, phase) must be read from the struct at the start of `perform` and
+written back at the end. Never keep it in a `static`.
 
 ## Destructor
 
-Free anything you allocated — extra iolets and any `getbytes` buffers:
+Free any `getbytes` buffers. Calling `inlet_free`/`outlet_free` is optional because Pd frees iolets itself:
 
 ```c
 void gain_tilde_free(t_gain_tilde *x) {
@@ -142,15 +122,7 @@ void gain_tilde_free(t_gain_tilde *x) {
 }
 ```
 
-Strictly, Pd auto-frees inlets/outlets; explicit `inlet_free`/`outlet_free` is shown for completeness and
-is required if you do iolet "magic". Heap memory from `getbytes`/`malloc` you **must** free yourself.
-
-## Useful DSP queries
-
-- `float sys_getsr(void);` — system sample rate (e.g. for time→samples conversions).
-- `int sys_getblksize(void);` — top-level block size. **Not necessarily** your perform routine's vector
-  length: a `block~`/`switch~` can change that. For the actual length use `s_n` from a `t_signal` in your
-  `dsp` method.
+**Multichannel (0.54+)** works through `CLASS_MULTICHANNEL`, `s_nchans` and `signal_setmultiout`. See `api-reference.md` → DSP and `m_pd.h`.
 
 ## Worked example — `xfade~` (crossfade two signals)
 

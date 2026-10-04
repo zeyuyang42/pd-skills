@@ -56,7 +56,7 @@ void *myobj_new(t_floatarg f) {
 }
 
 /* ---- destructor: only needed if you allocate. Register it as class_new's 3rd
- * arg (0 below means none). Free heap memory and any extra iolets here:
+ * arg (0 below means none). Free heap memory here (Pd frees iolets itself):
  *   void myobj_free(t_myobj *x) { freebytes(x->buf, x->size * sizeof(t_float)); }
  */
 

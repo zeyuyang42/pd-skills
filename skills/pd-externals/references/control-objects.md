@@ -1,20 +1,11 @@
 # Control (message) objects
 
-Everything about non-audio objects: messages, methods, creation arguments, inlets, and outlets.
-For audio (`~`) objects see `signal-objects.md`.
+Covers messages, methods, creation arguments, inlets and outlets. For audio, see `signal-objects.md`.
 
 ## Messages: selectors and atoms
 
-A Pd message is a **selector** (a symbol naming the message type) followed by a list of **atoms**.
-Three atom types exist:
-
-- `A_FLOAT` — a number. *All* Pd numbers are floating point (`t_float`); there is no integer atom.
-- `A_SYMBOL` — an interned string (`t_symbol *`). Get one with `gensym("text")`; compare by pointer.
-- `A_POINTER` — a pointer to a graphical/data object (rare in simple externals).
-
-An atom's type is in `a.a_type`.
-
-Five selectors are predefined and have direct symbol addresses (no `gensym` needed):
+A message is a **selector** symbol followed by **atoms**. Each atom is one of `A_FLOAT`, `A_SYMBOL` or `A_POINTER`,
+and its type is in `a.a_type`. The predefined selectors have fixed addresses, so they need no `gensym`:
 
 | selector | address | payload |
 |----------|---------|---------|
@@ -128,8 +119,7 @@ symbolinlet_new(&x->x_obj, &x->name);      /* symbol -> x->name (t_symbol *)  */
 pointerinlet_new(&x->x_obj, &x->ptr);      /* pointer-> x->ptr (t_gpointer)   */
 ```
 
-Passive inlets store the incoming value directly in your data space. Convenient, but you get no callback,
-so you can't validate or react on arrival — read the stored value when you next need it.
+Passive inlets store the value without calling you back, so they can't validate it or react when it arrives.
 
 ## Outlets
 
@@ -158,15 +148,9 @@ outlet_anything(x->a_out, gensym("mysel"), argc, argv);
 
 ### Output order: right to left
 
-When a single incoming message makes **more than one** outlet fire, emit on the **rightmost** outlet first and
-work leftward. Pd's message passing is depth-first and synchronous: the moment you call `outlet_*`, Pd runs the
-entire chain connected to that outlet to completion before your next line executes. If you fired a left outlet
-first, a downstream object might act on it while the value you were about to push out a right outlet doesn't exist
-yet — a subtle, order-dependent bug. Firing right-to-left guarantees the "later" (leftward) outputs see a fully
-settled state. This is exactly what the built-in `[trigger]` does.
-
-Create the outlets left-to-right (so they appear in the right on-screen order), but **store each handle** and fire
-them in reverse:
+`outlet_*` runs everything downstream of that outlet before it returns. So when one message fires several outlets,
+fire the **rightmost first**: by the time the left outlet triggers its chain, the right-hand values are already in place.
+This matches `[trigger]`. Create outlets left to right and fire them in reverse:
 
 ```c
 /* constructor: left outlet first, right outlet second */

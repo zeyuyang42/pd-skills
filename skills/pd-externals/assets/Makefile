@@ -5,9 +5,7 @@
 # e.g.  class.sources = myobj~.c
 #
 # Build:   make
-#          make PDDIR=/path/to/Pd          # if m_pd.h isn't auto-found
-#   macOS app bundle ships headers inside it, e.g.:
-#          make PDDIR=/Applications/Pd-0.55-2.app/Contents/Resources
+#          make PDINCLUDEDIR=/path/to/pd/src   # dir containing m_pd.h, if not auto-found
 # Install: make install PDLIBDIR=~/Documents/Pd/externals
 # Clean:   make clean
 #
